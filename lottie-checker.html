@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Lottie Player</title>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.9.4/lottie.min.js"></script>
+		<style>
+			#animationContainer {
+				width: 400px;
+				height: 400px;
+				margin: 20px auto;
+				border: 2px dashed #ccc;
+                background-color: grey;
+			}
+			body {
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				font-family: Arial, sans-serif;
+			}
+			input[type='file'] {
+				margin: 20px;
+				padding: 10px;
+			}
+		</style>
+	</head>
+	<body>
+		<input type="file" id="lottieFile" accept=".json" />
+		<div id="animationContainer"></div>
+
+		<script>
+			let animationInstance = null;
+
+			document
+				.getElementById('lottieFile')
+				.addEventListener('change', function (e) {
+					const file = e.target.files[0];
+
+					if (!file) return;
+
+					// Clear previous animation
+					if (animationInstance) {
+						animationInstance.destroy();
+						animationInstance = null;
+					}
+
+					const reader = new FileReader();
+
+					reader.onload = function (e) {
+						try {
+							const animationData = JSON.parse(e.target.result);
+
+							animationInstance = lottie.loadAnimation({
+								container: document.getElementById('animationContainer'),
+								renderer: 'svg',
+								loop: true,
+								autoplay: true,
+								animationData: animationData,
+							});
+						} catch (error) {
+							alert('Error parsing JSON file: ' + error.message);
+						}
+					};
+
+					reader.onerror = function (error) {
+						alert('Error reading file: ' + error.message);
+					};
+
+					reader.readAsText(file);
+				});
+		</script>
+	</body>
+</html>
