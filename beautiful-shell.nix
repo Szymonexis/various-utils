@@ -1,15 +1,24 @@
-# run with: nix-shell file.nix
+# run with: nix-shell <filename>.nix
 let
   pkgs = import <nixpkgs> { };
 in
 pkgs.mkShell {
   packages = [
     pkgs.zsh
-    (pkgs.python3.withPackages (pp: [
-      pp.pandas
-      pp.requests
-      pp.numpy
-    ]))
+
+    # other packages you need
+    # python
+    # (pkgs.python3.withPackages (pp: [
+    #   pp.pandas
+    #   pp.requests
+    #   pp.numpy
+    # ]))
+
+    # node
+    # pkgs.nodejs_24
+
+    # go
+    # pkgs.go
   ];
 
   shellHook = ''
