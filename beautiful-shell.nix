@@ -3,23 +3,33 @@ let
   pkgs = import <nixpkgs> { };
 in
 pkgs.mkShell {
-  packages = [
-    pkgs.zsh
+  packages = with pkgs; [
+    zsh
 
     # other packages you need
-    # python
-    # (pkgs.python3.withPackages (pp: [
+    # python:
+    # (python3.withPackages (pp: [
     #   pp.pandas
     #   pp.requests
     #   pp.numpy
     # ]))
 
-    # node
-    # pkgs.nodejs_24
+    # node:
+    # nodejs_24
+    # prisma-engines
 
+    # golang:
     # go
-    # pkgs.go
   ];
+
+  # for prisma-engines (6.7.0)
+  # env = with pkgs; {
+  #   PRISMA_FORMAT_BINARY = "${prisma-engines}/bin/prisma-fmt";
+  #   PRISMA_QUERY_ENGINE_BINARY = "${prisma-engines}/bin/query-engine";
+  #   PRISMA_QUERY_ENGINE_LIBRARY = "${prisma-engines}/lib/libquery_engine.node";
+  #   PRISMA_SCHEMA_ENGINE_BINARY = "${prisma-engines}/bin/schema-engine";
+  #   PRISMA_INTROSPECTION_ENGINE_BINARY = "${prisma-engines}/bin/introspection-engine";
+  # };
 
   shellHook = ''
     export SHELL=${pkgs.zsh}/bin/zsh
