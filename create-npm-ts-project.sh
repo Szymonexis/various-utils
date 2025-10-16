@@ -138,6 +138,7 @@ node_modules/
 dist/
 .env
 .zshrc.d
+src/generated/
 EOF
 
 echo -e "\n✅ Done! To run your project:\n cd $PROJECT_NAME && npm run start"
