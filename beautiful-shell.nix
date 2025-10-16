@@ -6,7 +6,8 @@ pkgs.mkShell {
   packages = with pkgs; [
     zsh
 
-    # other packages you need
+    # other packages you might need
+    
     # python:
     # (python3.withPackages (pp: [
     #   pp.pandas
