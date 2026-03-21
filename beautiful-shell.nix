@@ -21,6 +21,12 @@ pkgs.mkShell {
 
     # golang:
     # go
+
+    # rust:
+    # rustc
+    # cargo
+    # rustfmt
+    # clippy
   ];
 
   # for prisma-engines (6.7.0)
