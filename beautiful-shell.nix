@@ -3,29 +3,27 @@ let
   pkgs = import <nixpkgs> { };
 in
 pkgs.mkShell {
-  # needed for rust also
+  # [rust]
   # hardeningDisable = [ "all" ];
 
   packages = with pkgs; [
     zsh
-
-    # other packages you might need
     
-    # python:
+    # [python]:
     # (python3.withPackages (pp: [
     #   pp.pandas
     #   pp.requests
     #   pp.numpy
     # ]))
 
-    # node:
+    # [node]:
     # nodejs_24
     # prisma-engines
 
-    # golang:
+    # [golang]:
     # go
 
-    # rust:
+    # [rust]:
     # rustc
     # cargo
     # rustfmt
@@ -42,6 +40,9 @@ pkgs.mkShell {
   # };
 
   shellHook = ''
+    # [rust]
+    # export NIX_ENFORCE_PURITY=0
+    
     export SHELL=${pkgs.zsh}/bin/zsh
     export ZDOTDIR=$(pwd)/.zshrc.d
     mkdir -p $ZDOTDIR
