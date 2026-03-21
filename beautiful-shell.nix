@@ -28,6 +28,7 @@ pkgs.mkShell {
     # cargo
     # rustfmt
     # clippy
+    # rust-src
   ];
 
   # for prisma-engines (6.7.0)
