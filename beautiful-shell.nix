@@ -3,6 +3,9 @@ let
   pkgs = import <nixpkgs> { };
 in
 pkgs.mkShell {
+  # needed for rust also
+  # hardeningDisable = [ "all" ];
+
   packages = with pkgs; [
     zsh
 
