@@ -5,6 +5,8 @@ in
 pkgs.mkShell {
   # [rust]
   # hardeningDisable = [ "all" ];
+  # RUST_SRC_PATH = "${pkgs.rust.packages.stable.rustPlatform.rustLibSrc}";
+
 
   packages = with pkgs; [
     zsh
