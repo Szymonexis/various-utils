@@ -7,10 +7,9 @@ pkgs.mkShell {
   # hardeningDisable = [ "all" ];
   # RUST_SRC_PATH = "${pkgs.rust.packages.stable.rustPlatform.rustLibSrc}";
 
-
   packages = with pkgs; [
     zsh
-    
+
     # [python]:
     # (python3.withPackages (pp: [
     #   pp.pandas
@@ -20,7 +19,8 @@ pkgs.mkShell {
 
     # [node]:
     # nodejs_24
-    # prisma-engines
+    # prisma-engines_7
+    # prisma_7
 
     # [golang]:
     # go
@@ -33,19 +33,17 @@ pkgs.mkShell {
     # rust-src
   ];
 
-  # for prisma-engines (6.7.0)
-  # env = with pkgs; {
-  #   PRISMA_FORMAT_BINARY = "${prisma-engines}/bin/prisma-fmt";
-  #   PRISMA_QUERY_ENGINE_BINARY = "${prisma-engines}/bin/query-engine";
-  #   PRISMA_QUERY_ENGINE_LIBRARY = "${prisma-engines}/lib/libquery_engine.node";
-  #   PRISMA_SCHEMA_ENGINE_BINARY = "${prisma-engines}/bin/schema-engine";
-  #   PRISMA_INTROSPECTION_ENGINE_BINARY = "${prisma-engines}/bin/introspection-engine";
-  # };
-
   shellHook = ''
     # [rust]
     # export NIX_ENFORCE_PURITY=0
-    
+
+    # [node:prisma]
+    # export PKG_CONFIG_PATH="${pkgs.openssl.dev}/lib/pkgconfig"
+    # export PRISMA_SCHEMA_ENGINE_BINARY="${pkgs.prisma-engines}/bin/schema-engine"
+    # export PRISMA_QUERY_ENGINE_BINARY="${pkgs.prisma-engines}/bin/query-engine"
+    # export PRISMA_QUERY_ENGINE_LIBRARY="${pkgs.prisma-engines}/lib/libquery_engine.node"
+    # export PRISMA_FMT_BINARY="${pkgs.prisma-engines}/bin/prisma-fmt"
+
     export SHELL=${pkgs.zsh}/bin/zsh
     export ZDOTDIR=$(pwd)/.zshrc.d
     mkdir -p $ZDOTDIR
