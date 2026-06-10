@@ -18,7 +18,7 @@ pkgs.mkShell {
     # ]))
 
     # [node]:
-    nodejs_24
+    # nodejs_24
     # prisma-engines_7
     # prisma_7
 
