@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>local-git-stats</title>
+		<link rel="stylesheet" href="/style.css" />
+		<link
+			rel="icon"
+			href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%8A%3C/text%3E%3C/svg%3E"
+		/>
+	</head>
+	<body>
+		<header class="topbar">
+			<div class="brand">
+				<span class="logo">📊</span>
+				<div>
+					<h1>local-git-stats</h1>
+					<p class="tagline">Insights for any git repo on this machine</p>
+				</div>
+			</div>
+		</header>
+
+		<section class="picker card">
+			<div class="picker-row">
+				<label for="repo">Repository path</label>
+				<div class="repo-input">
+					<input
+						id="repo"
+						type="text"
+						placeholder="/path/to/your/repo  (or ~/code/project)"
+						autocomplete="off"
+						spellcheck="false"
+					/>
+					<button id="loadBtn" class="primary">Load repo</button>
+				</div>
+				<p id="hint" class="hint"></p>
+			</div>
+
+			<div class="picker-row branch-row hidden" id="branchRow">
+				<label for="branch">Branch</label>
+				<div class="branch-controls">
+					<select id="branch"></select>
+					<span id="repoLabel" class="repo-label"></span>
+				</div>
+			</div>
+		</section>
+
+		<div id="status" class="status hidden"></div>
+
+		<main id="dashboard" class="hidden">
+			<!-- summary cards -->
+			<section class="summary" id="summary"></section>
+
+			<div class="grid">
+				<section class="card">
+					<h2>Commits per contributor</h2>
+					<div id="contributors" class="contributors"></div>
+				</section>
+
+				<section class="card">
+					<h2>Activity by weekday</h2>
+					<div id="weekday" class="bars-vertical"></div>
+					<h2 class="mt">Activity by hour</h2>
+					<div id="hour" class="bars-vertical hours"></div>
+				</section>
+			</div>
+
+			<section class="card">
+				<h2>Commit activity over time</h2>
+				<div id="timeline" class="timeline"></div>
+			</section>
+
+			<section class="card">
+				<div class="card-head">
+					<h2>Commit graph</h2>
+					<div class="graph-controls">
+						<label for="graphLimit">Show</label>
+						<select id="graphLimit">
+							<option value="100">100 commits</option>
+							<option value="200" selected>200 commits</option>
+							<option value="500">500 commits</option>
+							<option value="1000">1000 commits</option>
+						</select>
+					</div>
+				</div>
+				<div id="graph" class="graph"></div>
+			</section>
+		</main>
+
+		<footer class="footer">
+			Runs entirely locally · powered by your <code>git</code> CLI
+		</footer>
+
+		<script src="/app.js"></script>
+	</body>
+</html>

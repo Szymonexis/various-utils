@@ -1,0 +1,23 @@
+{
+	"name": "local-git-stats",
+	"version": "1.0.0",
+	"description": "Visualise stats (commits per contributor, commit graph, activity) for any local git repository, with branch selection. Zero dependencies — uses your local git CLI.",
+	"bin": {
+		"local-git-stats": "server.js"
+	},
+	"scripts": {
+		"start": "node server.js",
+		"dev": "node server.js --open"
+	},
+	"keywords": [
+		"git",
+		"stats",
+		"contributors",
+		"commit-graph",
+		"visualization"
+	],
+	"license": "MIT",
+	"engines": {
+		"node": ">=16"
+	}
+}
