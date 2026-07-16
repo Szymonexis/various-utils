@@ -30,7 +30,6 @@ pkgs.mkShell {
     # cargo
     # rustfmt
     # clippy
-    # rust-src
   ];
 
   shellHook = ''
@@ -46,9 +45,9 @@ pkgs.mkShell {
 
     # zsh terminal forwarding:
     export SHELL=${pkgs.zsh}/bin/zsh
-    export ZDOTDIR=$(pwd)/.zshrc.d
-    mkdir -p $ZDOTDIR
-    cat > $ZDOTDIR/.zshrc <<'EOF'
+    export ZDOTDIR="$(pwd)/.zshrc.d"
+    mkdir -p "$ZDOTDIR"
+    cat > "$ZDOTDIR/.zshrc" <<'EOF'
       # Source your original config
       [[ -f ~/.zshrc ]] && source ~/.zshrc
 
