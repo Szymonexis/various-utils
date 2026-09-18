@@ -1,0 +1,28 @@
+services:
+  gitscope:
+    build: .
+    image: gitscope:local
+    container_name: gitscope
+    ports:
+      - "${PORT:-8080}:8080"
+    volumes:
+      # The folder that contains your repositories, mounted read-only.
+      # Set REPOS_ROOT in .env (copy .env.example). Forward slashes work on Windows too.
+      - type: bind
+        source: "${REPOS_ROOT:?Set REPOS_ROOT in .env to the folder that contains your git repos}"
+        target: /repos
+        read_only: true
+      # Identity merges, recent repos and the git-blame cache survive restarts here.
+      - type: volume
+        source: gitscope-data
+        target: /data
+    environment:
+      # Shown in the UI so you can paste host paths (C:/Users/you/code/app) straight in.
+      REPOS_ROOT_HOST: "${REPOS_ROOT}"
+      # Parallel git blame processes for the ownership computation.
+      BLAME_WORKERS: "${BLAME_WORKERS:-0}"
+      # Files longer than this are skipped by ownership (minified bundles, giant lockfiles).
+      BLAME_MAX_LINES: "${BLAME_MAX_LINES:-20000}"
+
+volumes:
+  gitscope-data:

@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>gitscope</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='%23F27B54'/><circle cx='16' cy='16' r='5' fill='%231C222B'/></svg>">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <a class="brand" href="/" title="gitscope">
+    <svg width="22" height="22" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="14" fill="#F27B54"/><circle cx="16" cy="16" r="5" fill="#1C222B"/><path d="M16 2v9M16 21v9M2 16h9M21 16h9" stroke="#1C222B" stroke-width="2.5" stroke-linecap="round"/></svg>
+    <span>gitscope</span>
+  </a>
+
+  <form class="repo-form" id="repo-form" autocomplete="off">
+    <label class="sr-only" for="repo-path">Repository path</label>
+    <input id="repo-path" type="text" placeholder="/path/inside/your/repos/folder" spellcheck="false">
+    <button type="button" class="btn" id="btn-browse">Browse</button>
+    <button type="submit" class="btn btn-accent" id="btn-analyze">Analyze</button>
+  </form>
+
+  <div class="repo-meta" id="repo-meta" hidden>
+    <span class="meta-branch" id="meta-branch"></span>
+    <span class="meta-sep"></span>
+    <span id="meta-head" class="mono"></span>
+    <span class="meta-sep"></span>
+    <span id="meta-commits"></span>
+  </div>
+</header>
+
+<div class="notice" id="notice" hidden></div>
+
+<main class="layout" id="layout" hidden>
+
+  <aside class="sidebar">
+    <section class="panel roster">
+      <div class="panel-head">
+        <h2>People</h2>
+        <input type="search" id="roster-search" class="input-sm" placeholder="Find" style="width:90px">
+        <select id="roster-sort" class="select-sm" title="Sort people">
+          <option value="net">by lines changed</option>
+          <option value="commits">by commits</option>
+          <option value="owned">by owned lines</option>
+          <option value="name">by name</option>
+        </select>
+      </div>
+      <p class="hint">Merge duplicate identities into one person, or hide bots and noise. Changes apply everywhere and are saved for this repo.</p>
+      <div class="roster-tools">
+        <button type="button" class="btn" id="btn-merge-names" title="Merge people whose display names are identical (different emails) into the one with the most commits">Merge identical names</button>
+        <button type="button" class="btn" id="btn-reset-identities" title="Undo every merge, hide and rename for this repo">Reset</button>
+      </div>
+      <ul class="roster-list" id="roster"></ul>
+    </section>
+
+    <section class="panel options">
+      <div class="panel-head"><h2>Options</h2></div>
+      <label class="check"><input type="checkbox" id="opt-coauthors"> Count co-authors <span class="hint-inline" title="Credits every 'Co-authored-by:' trailer with the commit as well (like GitHub does). Useful when a tool such as Claude Code adds itself as co-author.">?</span></label>
+      <label class="check"><input type="checkbox" id="opt-merges" checked> Count merge commits</label>
+      <label class="check"><input type="checkbox" id="opt-all"> All branches, not just HEAD</label>
+      <label class="field">
+        <span>Ignore paths</span>
+        <textarea id="opt-ignore" rows="2" placeholder="package-lock.json, dist/, *.min.js, vendor/"></textarea>
+      </label>
+      <p class="hint">Globs, comma separated. A trailing slash matches a folder anywhere. Applies when you leave the field.</p>
+      <button type="button" class="btn btn-block" id="btn-reanalyze">Re-read repository</button>
+      <p class="hint">Use this after new commits land. Ownership is cached per HEAD, so it recomputes only when HEAD moved.</p>
+    </section>
+  </aside>
+
+  <div class="content">
+
+    <section class="summary" id="summary"></section>
+
+    <div class="grid-2">
+      <section class="panel">
+        <div class="panel-head"><h2>Lines by person</h2>
+          <span class="legend"><i class="sw sw-add"></i>added <i class="sw sw-del"></i>deleted <i class="sw sw-own"></i>owned today</span>
+        </div>
+        <div class="chart-wrap" id="wrap-lines"><canvas id="chart-lines"></canvas></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h2>Who owns the code today</h2></div>
+        <div id="ownership-box">
+          <div class="ownership-idle" id="ownership-idle">
+            <p>Churn tells you who typed the most. Ownership runs <span class="mono">git blame</span> on every text file at HEAD and tells you whose lines are still there.</p>
+            <button type="button" class="btn btn-accent" id="btn-ownership">Compute ownership</button>
+            <p class="hint" id="ownership-hint">Takes seconds on small repos, a few minutes on large ones. Result is cached until HEAD changes.</p>
+          </div>
+          <div class="ownership-progress" id="ownership-progress" hidden>
+            <div class="bar"><div class="bar-fill" id="ownership-fill"></div></div>
+            <p class="hint" id="ownership-status">Starting…</p>
+          </div>
+          <div class="chart-wrap chart-wrap-donut" id="wrap-own" hidden><canvas id="chart-own"></canvas></div>
+        </div>
+      </section>
+    </div>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Activity over time</h2>
+        <div class="seg" role="group" aria-label="Metric">
+          <button type="button" data-metric="commits" class="on">commits</button>
+          <button type="button" data-metric="lines">lines changed</button>
+        </div>
+        <div class="seg" role="group" aria-label="Granularity">
+          <button type="button" data-gran="week">week</button>
+          <button type="button" data-gran="month" class="on">month</button>
+          <button type="button" data-gran="year">year</button>
+        </div>
+      </div>
+      <div class="chart-wrap chart-wrap-tall"><canvas id="chart-activity"></canvas></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>Lines over time</h2><span class="hint">Cumulative added minus deleted, per person, primary author only.</span></div>
+      <div class="chart-wrap chart-wrap-tall"><canvas id="chart-cumulative"></canvas></div>
+    </section>
+
+    <div class="grid-2">
+      <section class="panel">
+        <div class="panel-head"><h2>When people commit</h2><span class="hint">Author local time</span></div>
+        <div class="heatmap" id="heatmap"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h2>File types</h2>
+          <div class="seg" role="group" aria-label="File type metric">
+            <button type="button" data-ftm="churn" class="on">lines added</button>
+            <button type="button" data-ftm="owned">owned today</button>
+          </div>
+        </div>
+        <div class="chart-wrap" id="wrap-types"><canvas id="chart-types"></canvas></div>
+      </section>
+    </div>
+
+    <div class="grid-2">
+      <section class="panel">
+        <div class="panel-head"><h2>Most changed files</h2><span class="hint">All authors, ignores applied</span></div>
+        <table class="table" id="top-files"><thead><tr><th>File</th><th class="num">commits</th><th class="num">+</th><th class="num">−</th></tr></thead><tbody></tbody></table>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h2>Busiest days</h2></div>
+        <table class="table" id="top-days"><thead><tr><th>Day</th><th class="num">commits</th><th class="num">+</th><th class="num">−</th></tr></thead><tbody></tbody></table>
+      </section>
+    </div>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Commits</h2>
+        <input type="search" id="commit-search" placeholder="Search subject or hash" class="input-sm">
+        <select id="commit-person" class="select-sm"><option value="">Everyone</option></select>
+        <label class="check check-inline"><input type="checkbox" id="commit-hide-merges"> hide merges</label>
+        <span class="hint" id="commit-count"></span>
+      </div>
+      <table class="table commits" id="commits"><thead><tr><th>Hash</th><th>When</th><th>Who</th><th>Subject</th><th class="num">+</th><th class="num">−</th></tr></thead><tbody></tbody></table>
+      <button type="button" class="btn btn-block" id="btn-more-commits" hidden>Show more</button>
+    </section>
+
+  </div>
+</main>
+
+<section class="welcome" id="welcome">
+  <div class="welcome-card">
+    <h1>Point gitscope at a repository</h1>
+    <p>Anything under your mounted repos folder <span class="mono" id="welcome-root"></span> can be analysed. Type a path above, paste one from your file manager, or browse.</p>
+    <div class="welcome-actions">
+      <button type="button" class="btn btn-accent" id="btn-browse-welcome">Browse repositories</button>
+    </div>
+    <div id="recent-wrap" hidden>
+      <h2>Recently analysed</h2>
+      <ul class="recent" id="recent"></ul>
+    </div>
+  </div>
+</section>
+
+<div class="modal" id="browse-modal" hidden>
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-card" role="dialog" aria-labelledby="browse-title">
+    <div class="modal-head">
+      <h2 id="browse-title">Browse</h2>
+      <button type="button" class="btn btn-ghost" data-close aria-label="Close">✕</button>
+    </div>
+    <div class="crumbs" id="browse-crumbs"></div>
+    <ul class="browse-list" id="browse-list"></ul>
+    <div class="modal-foot">
+      <span class="hint" id="browse-hint"></span>
+      <button type="button" class="btn btn-accent" id="browse-select" hidden>Analyze this repository</button>
+    </div>
+  </div>
+</div>
+
+<div class="loading" id="loading" hidden><div class="spinner"></div><span id="loading-text">Reading git history…</span></div>
+
+<script src="/vendor/chart.umd.js"></script>
+<script type="module" src="/app.js"></script>
+</body>
+</html>
