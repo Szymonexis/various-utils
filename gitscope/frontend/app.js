@@ -25,6 +25,7 @@ const state = {
   pollTimer: null,
 };
 const charts = {};
+const chartCfgs = {}; // last config per canvas, so the export can redraw at high resolution
 
 Chart.defaults.color = color("--muted");
 Chart.defaults.borderColor = color("--line");
@@ -109,6 +110,7 @@ async function openRepo(path, { reread = false } = {}) {
     renderOwnershipState(own);
     $("#welcome").hidden = true;
     $("#layout").hidden = false;
+    $("#btn-export").hidden = false;
     renderRepoMeta();
     renderAll();
     if (own.status === "running") startPolling();
@@ -407,6 +409,7 @@ function renderSummary() {
 }
 
 function chart(id, cfg) {
+  chartCfgs[id] = cfg;
   if (charts[id]) { charts[id].destroy(); }
   charts[id] = new Chart($(id), cfg);
   return charts[id];
@@ -695,7 +698,251 @@ $("#browse-modal").addEventListener("click", (e) => {
   if (nav) openBrowse(nav.dataset.path === "/" ? "" : nav.dataset.path);
 });
 $("#browse-select").addEventListener("click", () => { closeBrowse(); openRepo(browseState.path); });
-document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("#browse-modal").hidden) closeBrowse(); });
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  if (!$("#browse-modal").hidden) closeBrowse();
+  if (!$("#export-modal").hidden) closeExport();
+});
+
+/* ------------------------------------------------------------------ export
+ * Selected panels are cloned into an off-screen layout, charts are redrawn at
+ * high DPI, and the whole thing is rasterised through an SVG <foreignObject>
+ * so the export looks exactly like the app. PNG saves the full strip; PDF
+ * slices it into A4 pages at panel boundaries. No libraries involved. */
+
+const EXPORT_SECTIONS = [
+  { key: "summary", label: "Summary numbers", sel: "#summary" },
+  { key: "lines", label: "Lines by person", sel: "#panel-lines" },
+  { key: "own", label: "Who owns the code", sel: "#panel-own", need: () => !!state.ownership },
+  { key: "activity", label: "Activity over time", sel: "#panel-activity" },
+  { key: "cumulative", label: "Lines over time", sel: "#panel-cumulative" },
+  { key: "heatmap", label: "When people commit", sel: "#panel-heatmap" },
+  { key: "types", label: "File types", sel: "#panel-types" },
+  { key: "topfiles", label: "Most changed files", sel: "#panel-topfiles" },
+  { key: "topdays", label: "Busiest days", sel: "#panel-topdays" },
+  { key: "commits", label: "Commit list (as filtered)", sel: "#panel-commits" },
+];
+const EXPORT_PAIRS = { lines: "own", heatmap: "types", topfiles: "topdays" }; // side-by-side when both picked
+const A4 = { w: 595.28, h: 841.89 }; // points, portrait
+const PAGE_MARGIN = 24;              // css px of vertical margin per PDF page
+
+function exportPrefs(save) {
+  if (save) localStorage.setItem("gitscope:export", JSON.stringify(save));
+  try { return JSON.parse(localStorage.getItem("gitscope:export") || "{}"); } catch { return {}; }
+}
+function openExport() {
+  const prefs = exportPrefs();
+  $("#export-options").innerHTML = EXPORT_SECTIONS.map((s) => {
+    const ok = !s.need || s.need();
+    const checked = ok && (!prefs.sections || prefs.sections.includes(s.key));
+    return `<li><label class="check"><input type="checkbox" value="${s.key}" ${checked ? "checked" : ""} ${ok ? "" : "disabled"}> ${s.label}${ok ? "" : ` <span class="hint" style="display:inline;margin:0">— compute ownership first</span>`}</label></li>`;
+  }).join("");
+  if (prefs.format) $("#export-format").value = prefs.format;
+  if (prefs.scale) $("#export-scale").value = String(prefs.scale);
+  $("#export-hint").textContent = "";
+  $("#export-modal").hidden = false;
+}
+function closeExport() { $("#export-modal").hidden = true; }
+
+function exportHeader() {
+  const r = state.data.repo;
+  const bits = [`${r.branch} @ ${r.head.slice(0, 8)}`, `${fmt(includedCommits().length)} commits`];
+  if (state.opts.all) bits.push("all branches");
+  if (state.opts.coauthors) bits.push("co-authors counted");
+  if (!state.opts.merges) bits.push("merges excluded");
+  if (state.opts.ignore.trim()) bits.push(`ignoring ${state.opts.ignore.trim()}`);
+  const div = document.createElement("div");
+  div.className = "export-head";
+  div.innerHTML = `<div class="export-brand">${$(".brand svg").outerHTML}<span>gitscope</span></div>
+    <h1>${esc(r.name)}</h1><p class="hint">${esc(bits.join(" · "))}</p>`;
+  return div;
+}
+function exportClone(sec) {
+  const node = $(sec.sel).cloneNode(true);
+  $$("canvas", node).forEach((cv) => { cv.dataset.chart = "#" + cv.id; });
+  $$("[hidden], button, input, select, textarea, .seg, .check", node).forEach((el) => el.remove());
+  $$("[id]", node).forEach((el) => el.removeAttribute("id")); // no duplicate ids while measuring
+  const head = $(".panel-head", node);
+  const addHint = (t) => head && head.insertAdjacentHTML("beforeend", `<span class="hint">${esc(t)}</span>`);
+  if (sec.key === "activity") addHint(`${state.opts.metric === "commits" ? "commits" : "lines changed"} · by ${state.opts.gran}`);
+  if (sec.key === "types") addHint(state.opts.ftm === "churn" ? "lines added" : "lines owned today");
+  if (sec.key === "commits") {
+    const total = filteredCommits().length;
+    const shown = Math.min($$("tbody tr", node).length, total);
+    const hint = $(".panel-head .hint", node);
+    if (hint) hint.textContent = total > shown ? `first ${fmt(shown)} of ${fmt(total)} commits` : `${fmt(total)} commits`;
+  }
+  return node;
+}
+function buildExportDom(keys) {
+  const sel = new Set(keys);
+  const root = document.createElement("div");
+  root.className = "export-root";
+  root.appendChild(exportHeader());
+  const done = new Set();
+  for (const sec of EXPORT_SECTIONS) {
+    if (!sel.has(sec.key) || done.has(sec.key)) continue;
+    done.add(sec.key);
+    const node = exportClone(sec);
+    const partner = EXPORT_PAIRS[sec.key];
+    if (partner && sel.has(partner)) {
+      done.add(partner);
+      const row = document.createElement("div");
+      row.className = "grid-2";
+      row.append(node, exportClone(EXPORT_SECTIONS.find((s) => s.key === partner)));
+      root.appendChild(row);
+    } else root.appendChild(node);
+  }
+  const foot = document.createElement("div");
+  foot.className = "export-foot";
+  foot.innerHTML = `<span>${esc(state.repoPath)}</span><span>generated by gitscope · ${new Date().toISOString().slice(0, 10)}</span>`;
+  root.appendChild(foot);
+  return root;
+}
+// Redraw every chart at its export size with devicePixelRatio = scale, swap the canvas for an <img>.
+function snapshotCharts(root, scale) {
+  for (const cv of $$("canvas", root)) {
+    const cfg = chartCfgs[cv.dataset.chart];
+    const wrap = cv.parentElement;
+    const img = document.createElement("img");
+    img.style.cssText = "display:block;width:100%;height:100%";
+    if (cfg) {
+      const off = document.createElement("canvas");
+      off.width = wrap.clientWidth; off.height = wrap.clientHeight;
+      const c = new Chart(off, { ...cfg, options: { ...cfg.options, responsive: false, animation: false, devicePixelRatio: scale } });
+      img.src = off.toDataURL("image/png");
+      c.destroy();
+    }
+    cv.replaceWith(img);
+  }
+}
+let exportCssCache = null;
+async function exportCss() {
+  if (exportCssCache == null) {
+    // :root becomes .export-root so the theme variables apply inside the SVG document
+    exportCssCache = (await (await fetch("/style.css")).text()).replaceAll(":root", ".export-root");
+  }
+  return exportCssCache.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+}
+async function rasterize(root, wCss, hCss, scale) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${Math.round(wCss * scale)}" height="${Math.round(hCss * scale)}" viewBox="0 0 ${wCss} ${hCss}">` +
+    `<style>${await exportCss()}</style><foreignObject width="${wCss}" height="${hCss}">${new XMLSerializer().serializeToString(root)}</foreignObject></svg>`;
+  try {
+    const img = new Image();
+    // A data: URL, not a blob: one — Chrome taints canvases drawn from blob-url foreignObject SVGs.
+    img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+    await img.decode();
+    return img;
+  } catch {
+    throw new Error("the browser could not render the export image");
+  }
+}
+// Page break candidates: start a new page rather than cutting a panel in half.
+function pageBreaks(root, contentH) {
+  const breaks = [0];
+  let start = 0;
+  for (const el of Array.from(root.children)) {
+    const bottom = el.offsetTop + el.offsetHeight;
+    const top = Math.max(0, el.offsetTop - 8);
+    if (bottom - start > contentH && top > start) { start = top; breaks.push(top); }
+  }
+  return breaks;
+}
+function slicePages(totalH, breaks, contentH) {
+  const pages = [];
+  for (let i = 0; i < breaks.length; i++) {
+    const end = i + 1 < breaks.length ? breaks[i + 1] : totalH;
+    for (let y = breaks[i]; y < end; y += contentH) pages.push({ y, h: Math.min(contentH, end - y) });
+  }
+  return pages;
+}
+async function pageJpeg(img, wCss, pageH, page, scale) {
+  const c = document.createElement("canvas");
+  c.width = Math.round(wCss * scale); c.height = Math.round(pageH * scale);
+  const ctx = c.getContext("2d");
+  ctx.fillStyle = color("--bg"); ctx.fillRect(0, 0, c.width, c.height);
+  ctx.drawImage(img, 0, Math.round(page.y * scale), c.width, Math.round(page.h * scale), 0, Math.round(PAGE_MARGIN * scale), c.width, Math.round(page.h * scale));
+  const blob = await new Promise((r) => c.toBlob(r, "image/jpeg", 0.92));
+  return new Uint8Array(await blob.arrayBuffer());
+}
+// Minimal PDF: one full-page JPEG per page. Offsets are byte-exact, nothing fancy.
+function buildPdf(jpegs, imgW, imgH) {
+  const enc = new TextEncoder();
+  const parts = [];
+  const offsets = [0];
+  let pos = 0;
+  const push = (d) => { const u = typeof d === "string" ? enc.encode(d) : d; parts.push(u); pos += u.length; };
+  const begin = () => offsets.push(pos);
+  push("%PDF-1.4\n%µ¶µ¶\n");
+  begin(); push(`1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n`);
+  begin(); push(`2 0 obj\n<< /Type /Pages /Kids [${jpegs.map((_, i) => `${5 + 3 * i} 0 R`).join(" ")}] /Count ${jpegs.length} >>\nendobj\n`);
+  jpegs.forEach((jpg, i) => {
+    const content = `q ${A4.w} 0 0 ${A4.h} 0 0 cm /Im Do Q`;
+    begin(); push(`${3 + 3 * i} 0 obj\n<< /Type /XObject /Subtype /Image /Width ${imgW} /Height ${imgH} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpg.length} >>\nstream\n`); push(jpg); push(`\nendstream\nendobj\n`);
+    begin(); push(`${4 + 3 * i} 0 obj\n<< /Length ${content.length} >>\nstream\n${content}\nendstream\nendobj\n`);
+    begin(); push(`${5 + 3 * i} 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${A4.w} ${A4.h}] /Resources << /XObject << /Im ${3 + 3 * i} 0 R >> >> /Contents ${4 + 3 * i} 0 R >>\nendobj\n`);
+  });
+  const xref = pos;
+  push(`xref\n0 ${offsets.length}\n0000000000 65535 f \n` + offsets.slice(1).map((o) => `${String(o).padStart(10, "0")} 00000 n \n`).join(""));
+  push(`trailer\n<< /Size ${offsets.length} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`);
+  return new Blob(parts, { type: "application/pdf" });
+}
+function download(blob, name) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 30000);
+}
+async function runExport() {
+  const keys = $$("#export-options input:checked").map((i) => i.value);
+  if (!keys.length) { $("#export-hint").textContent = "Pick at least one section."; return; }
+  const format = $("#export-format").value;
+  let scale = Number($("#export-scale").value) || 2;
+  exportPrefs({ sections: keys, format, scale });
+  closeExport();
+  loading("Rendering export…");
+  const stage = document.createElement("div");
+  stage.style.cssText = "position:fixed;left:-100000px;top:0;pointer-events:none";
+  try {
+    const root = buildExportDom(keys);
+    stage.appendChild(root);
+    document.body.appendChild(stage);
+    const wCss = root.offsetWidth, hCss = root.offsetHeight;
+    if (format === "png" && hCss * scale > 30000) scale = Math.max(1, Math.floor(30000 / hCss)); // canvas size ceiling
+    snapshotCharts(root, scale);
+    const img = await rasterize(root, wCss, hCss, scale);
+    const name = `${state.data.repo.name}-gitscope-${new Date().toISOString().slice(0, 10)}.${format}`;
+    if (format === "png") {
+      const c = document.createElement("canvas");
+      c.width = Math.round(wCss * scale); c.height = Math.round(hCss * scale);
+      const ctx = c.getContext("2d");
+      ctx.fillStyle = color("--bg"); ctx.fillRect(0, 0, c.width, c.height);
+      ctx.drawImage(img, 0, 0);
+      const blob = await new Promise((r) => c.toBlob(r, "image/png"));
+      if (!blob) throw new Error("the image is too large for the browser; try a lower resolution");
+      download(blob, name);
+    } else {
+      const pageH = wCss * (A4.h / A4.w);
+      const contentH = pageH - 2 * PAGE_MARGIN;
+      const pages = slicePages(hCss, pageBreaks(root, contentH), contentH);
+      const jpegs = [];
+      for (const p of pages) jpegs.push(await pageJpeg(img, wCss, pageH, p, scale));
+      download(buildPdf(jpegs, Math.round(wCss * scale), Math.round(pageH * scale)), name);
+    }
+    notice(`Exported ${keys.length} section${keys.length === 1 ? "" : "s"} to ${name}.`, "info");
+  } catch (err) {
+    notice(`Export failed: ${err.message}`);
+  } finally {
+    stage.remove();
+    loading(null);
+  }
+}
+$("#btn-export").addEventListener("click", openExport);
+$("#export-run").addEventListener("click", runExport);
+$("#export-all").addEventListener("click", () => $$("#export-options input:not(:disabled)").forEach((i) => { i.checked = true; }));
+$("#export-none").addEventListener("click", () => $$("#export-options input").forEach((i) => { i.checked = false; }));
+$("#export-modal").addEventListener("click", (e) => { if (e.target.closest("[data-close]")) closeExport(); });
 
 /* ------------------------------------------------------------------ wiring */
 

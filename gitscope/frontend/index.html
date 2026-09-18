@@ -29,6 +29,8 @@
     <span class="meta-sep"></span>
     <span id="meta-commits"></span>
   </div>
+
+  <button type="button" class="btn" id="btn-export" title="Export selected stats as a high-resolution PNG or a PDF" hidden>Export</button>
 </header>
 
 <div class="notice" id="notice" hidden></div>
@@ -75,14 +77,14 @@
     <section class="summary" id="summary"></section>
 
     <div class="grid-2">
-      <section class="panel">
+      <section class="panel" id="panel-lines">
         <div class="panel-head"><h2>Lines by person</h2>
           <span class="legend"><i class="sw sw-add"></i>added <i class="sw sw-del"></i>deleted <i class="sw sw-own"></i>owned today</span>
         </div>
         <div class="chart-wrap" id="wrap-lines"><canvas id="chart-lines"></canvas></div>
       </section>
 
-      <section class="panel">
+      <section class="panel" id="panel-own">
         <div class="panel-head"><h2>Who owns the code today</h2></div>
         <div id="ownership-box">
           <div class="ownership-idle" id="ownership-idle">
@@ -99,7 +101,7 @@
       </section>
     </div>
 
-    <section class="panel">
+    <section class="panel" id="panel-activity">
       <div class="panel-head">
         <h2>Activity over time</h2>
         <div class="seg" role="group" aria-label="Metric">
@@ -115,18 +117,18 @@
       <div class="chart-wrap chart-wrap-tall"><canvas id="chart-activity"></canvas></div>
     </section>
 
-    <section class="panel">
+    <section class="panel" id="panel-cumulative">
       <div class="panel-head"><h2>Lines over time</h2><span class="hint">Cumulative added minus deleted, per person, primary author only.</span></div>
       <div class="chart-wrap chart-wrap-tall"><canvas id="chart-cumulative"></canvas></div>
     </section>
 
     <div class="grid-2">
-      <section class="panel">
+      <section class="panel" id="panel-heatmap">
         <div class="panel-head"><h2>When people commit</h2><span class="hint">Author local time</span></div>
         <div class="heatmap" id="heatmap"></div>
       </section>
 
-      <section class="panel">
+      <section class="panel" id="panel-types">
         <div class="panel-head"><h2>File types</h2>
           <div class="seg" role="group" aria-label="File type metric">
             <button type="button" data-ftm="churn" class="on">lines added</button>
@@ -138,18 +140,18 @@
     </div>
 
     <div class="grid-2">
-      <section class="panel">
+      <section class="panel" id="panel-topfiles">
         <div class="panel-head"><h2>Most changed files</h2><span class="hint">All authors, ignores applied</span></div>
         <table class="table" id="top-files"><thead><tr><th>File</th><th class="num">commits</th><th class="num">+</th><th class="num">−</th></tr></thead><tbody></tbody></table>
       </section>
 
-      <section class="panel">
+      <section class="panel" id="panel-topdays">
         <div class="panel-head"><h2>Busiest days</h2></div>
         <table class="table" id="top-days"><thead><tr><th>Day</th><th class="num">commits</th><th class="num">+</th><th class="num">−</th></tr></thead><tbody></tbody></table>
       </section>
     </div>
 
-    <section class="panel">
+    <section class="panel" id="panel-commits">
       <div class="panel-head">
         <h2>Commits</h2>
         <input type="search" id="commit-search" placeholder="Search subject or hash" class="input-sm">
@@ -190,6 +192,41 @@
     <div class="modal-foot">
       <span class="hint" id="browse-hint"></span>
       <button type="button" class="btn btn-accent" id="browse-select" hidden>Analyze this repository</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="export-modal" hidden>
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-card" role="dialog" aria-labelledby="export-title">
+    <div class="modal-head">
+      <h2 id="export-title">Export stats</h2>
+      <button type="button" class="btn btn-ghost" data-close aria-label="Close">✕</button>
+    </div>
+    <p class="hint">Pick the sections to include. Everything is exported the way it looks right now: merges, hidden people, options and filters all apply.</p>
+    <div class="export-tools">
+      <button type="button" class="btn btn-xs" id="export-all">Select all</button>
+      <button type="button" class="btn btn-xs" id="export-none">Select none</button>
+    </div>
+    <ul class="export-options" id="export-options"></ul>
+    <div class="export-row">
+      <label>Format
+        <select id="export-format" class="select-sm">
+          <option value="png">PNG image</option>
+          <option value="pdf">PDF document</option>
+        </select>
+      </label>
+      <label>Resolution
+        <select id="export-scale" class="select-sm">
+          <option value="2">2×</option>
+          <option value="3">3×</option>
+          <option value="4">4× (slow)</option>
+        </select>
+      </label>
+    </div>
+    <div class="modal-foot">
+      <span class="hint" id="export-hint"></span>
+      <button type="button" class="btn btn-accent" id="export-run">Export</button>
     </div>
   </div>
 </div>

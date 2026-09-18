@@ -69,6 +69,8 @@ All of this is saved per repository in the `gitscope-data` volume, so it survive
 * File types: lines added or lines owned per extension.
 * Most changed files, busiest days, and a searchable commit list filterable by person.
 
+**Export**. The Export button in the top bar saves any selection of the charts and tables as a high-resolution PNG (2×–4×) or a paginated A4 PDF. What you export is exactly what you see: merges, hidden people, options and filters all apply. Everything is rendered in the browser, nothing leaves your machine.
+
 ## Notes per OS
 
 **Windows.** Docker Desktop shares drives on demand; if the mount comes up empty, check Settings → Resources → File sharing. Bind mounts from the Windows filesystem are slow for git operations with many files, so ownership on a big repo can take a while. If your repos already live inside WSL, run `docker compose up` from the WSL shell and set `REPOS_ROOT=/home/you/code`, that path is fast.
