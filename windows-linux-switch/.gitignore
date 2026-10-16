@@ -1,0 +1,4 @@
+# Local, machine-specific config files. NEVER commit these - this repository is public.
+# Create them by copying the *.example.* files (see README.md).
+boot-to-nixos.psd1
+boot-to-windows.conf

@@ -1,0 +1,4 @@
+# The bash script and its config must keep LF line endings even when checked out on Windows,
+# otherwise the shebang line breaks on NixOS ("bash\r: no such file").
+*.sh   text eol=lf
+*.conf text eol=lf
