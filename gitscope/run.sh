@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Run without Docker (needs python3 and git on PATH). Example:
-#   REPOS_ROOT=$HOME/code ./run-dev.sh
+#   REPOS_ROOT=$HOME/code ./run.sh
 set -euo pipefail
 cd "$(dirname "$0")/backend"
 export REPOS_ROOT="${REPOS_ROOT:-$HOME}"

@@ -81,13 +81,21 @@ All of this is saved per repository in the `gitscope-data` volume, so it survive
 
 ## Running without Docker
 
-Needs Python 3.11+ and git on PATH.
+Needs Python 3.11+ and git on PATH. One command installs the backend's requirements with pip and starts the server with auto-reload on http://localhost:8080. `REPOS_ROOT` defaults to your home folder, and saved merges plus the blame cache go to `data/` in this folder.
+
+macOS / Linux:
 
 ```bash
-REPOS_ROOT=$HOME/code ./run-dev.sh
+REPOS_ROOT=$HOME/code ./run.sh
 ```
 
-On Windows without WSL: `set REPOS_ROOT=C:/Users/simon/code`, then `cd backend && pip install -r requirements.txt && uvicorn app:app --port 8080`.
+Windows (Windows PowerShell 5.1 or PowerShell 7+):
+
+```powershell
+.\run.ps1 -ReposRoot C:/Users/simon/code    # or set $env:REPOS_ROOT first; -Port 9000 for another port
+```
+
+If PowerShell refuses with "running scripts is disabled on this system", start it once as `powershell -ExecutionPolicy Bypass -File .\run.ps1`, or allow local scripts for good with `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`. If it says the file "is not digitally signed" (you downloaded the repo as a ZIP), run `Unblock-File .\run.ps1` once.
 
 ## How it works
 
