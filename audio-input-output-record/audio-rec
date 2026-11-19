@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+# audio-rec - trigger entry point for Linux and macOS (Windows: audio-rec.cmd).
+# Bind this file to a global shortcut and each press toggles recording of
+# system audio + microphone (KDE: System Settings > Keyboard > Shortcuts >
+# Add New > Command or Script).
+#
+#   ./audio-rec              toggle (start / stop)
+#   ./audio-rec ui           the window
+#   ./audio-rec start|pause|resume|stop|status|devices|finalize FILE  (--help)
+#
+# Python and the tools come from:
+#   NixOS        ./shell.nix.  Evaluating nix-shell costs ~1 s, which would be
+#                lost audio at the start of every take, so the resolved PATH is
+#                cached until shell.nix changes or a cached store path
+#                disappears (e.g. after nix-collect-garbage).
+#   elsewhere    ./.venv if it exists (see README.md), else python3 on PATH.
+set -euo pipefail
+
+self="${BASH_SOURCE[0]}"
+self="$(readlink -f -- "$self" 2>/dev/null || echo "$self")"
+here="$(cd -- "$(dirname -- "$self")" && pwd)"
+
+# From a hotkey stderr is invisible, so errors also become a notification.
+alert() {
+  echo "audio-rec: $1" >&2
+  if [[ "$(uname -s)" == Darwin ]]; then
+    osascript -e 'on run argv' -e 'display notification (item 1 of argv) with title "audio-rec"' \
+      -e 'end run' "$1" >/dev/null 2>&1 || true
+  elif command -v notify-send >/dev/null; then
+    notify-send -a audio-rec -u critical -i dialog-error "audio-rec" "$1" || true
+  elif command -v busctl >/dev/null; then  # always there with systemd
+    busctl --user call org.freedesktop.Notifications /org/freedesktop/Notifications \
+      org.freedesktop.Notifications Notify susssasa{sv}i audio-rec 0 dialog-error \
+      "audio-rec" "$1" 0 1 urgency y 2 10000 >/dev/null 2>&1 || true
+  fi
+}
+
+if [[ ! -e /etc/NIXOS ]]; then
+  if [[ -x "$here/.venv/bin/python" ]]; then
+    exec "$here/.venv/bin/python" "$here/audio_rec.py" "$@"
+  fi
+  if command -v python3 >/dev/null; then
+    exec python3 "$here/audio_rec.py" "$@"
+  fi
+  alert "python3 not found; see README.md (Setup) for what to install"
+  exit 1
+fi
+
+# ---- NixOS: tools from shell.nix -----------------------------------------
+cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/audio-rec"
+cache="$cache_dir/nix-shell-path"
+stamp="$(stat -c '%Y:%s' -- "$here/shell.nix")"
+
+cached_path=""
+if [[ -r "$cache" ]]; then
+  { IFS= read -r cached_stamp && IFS= read -r cached_path; } < "$cache" || cached_path=""
+  if [[ "${cached_stamp:-}" != "$stamp" ]]; then
+    cached_path=""
+  else
+    IFS=: read -ra dirs <<< "$cached_path"
+    for d in "${dirs[@]}"; do
+      if [[ "$d" == /nix/store/* && ! -d "$d" ]]; then cached_path=""; break; fi
+    done
+  fi
+fi
+
+if [[ -z "$cached_path" ]]; then
+  # NIX_SHELL_NO_ZSH=1 stops shell.nix's hook from exec-ing an interactive zsh.
+  out="$(cd -- "$here" && NIX_SHELL_NO_ZSH=1 nix-shell "$here/shell.nix" \
+          --run 'printf "\n__AUDIO_REC_PATH__=%s\n" "$PATH"' </dev/null)" || {
+    alert "nix-shell failed to evaluate $here/shell.nix (offline, or a broken edit?)"
+    exit 1
+  }
+  cached_path="$(printf '%s\n' "$out" | sed -n 's/^__AUDIO_REC_PATH__=//p' | tail -n 1)"
+  if [[ -z "$cached_path" ]]; then
+    alert "could not read PATH from nix-shell ($here/shell.nix)"
+    exit 1
+  fi
+  mkdir -p -- "$cache_dir"
+  printf '%s\n%s\n' "$stamp" "$cached_path" > "$cache.tmp.$$" && mv -f -- "$cache.tmp.$$" "$cache"
+fi
+
+export PATH="$cached_path"
+unset LD_LIBRARY_PATH  # a foreign one breaks Nix-built ffmpeg (glibc mismatch)
+exec python3 "$here/audio_rec.py" "$@"

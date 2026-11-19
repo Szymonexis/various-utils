@@ -1,0 +1,6 @@
+# Windows, macOS and non-NixOS Linux (NixOS uses shell.nix via ./audio-rec).
+# Needs 64-bit Python 3.10+.  Install into a venv, see README.md.
+soundcard>=0.4.6        # WASAPI loopback (Windows), CoreAudio (macOS), PulseAudio
+soundfile>=0.12.1       # FLAC writing/reading (bundles libsndfile)
+numpy>=1.24             # aligning the two device streams
+imageio-ffmpeg>=0.6.0   # a bundled ffmpeg for the final mix (opus/mp3/aac/flac)

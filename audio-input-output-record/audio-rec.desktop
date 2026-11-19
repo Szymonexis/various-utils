@@ -1,0 +1,19 @@
+[Desktop Entry]
+Type=Application
+Name=Audio Recorder
+GenericName=System audio + mic recorder
+Comment=Record what you hear and say (audio-rec)
+Exec=/home/molly/Desktop/audio-input-output-record/audio-rec ui
+Icon=media-record
+Terminal=false
+Categories=AudioVideo;Audio;Recorder;
+StartupWMClass=audio-rec
+Actions=toggle;pause;
+
+[Desktop Action toggle]
+Name=Start / stop recording
+Exec=/home/molly/Desktop/audio-input-output-record/audio-rec toggle
+
+[Desktop Action pause]
+Name=Pause / resume recording
+Exec=/home/molly/Desktop/audio-input-output-record/audio-rec pause --toggle

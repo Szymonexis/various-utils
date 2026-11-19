@@ -1,0 +1,2 @@
+# Only for building standalone apps with PyInstaller (see README.md).
+pyinstaller>=6.11
