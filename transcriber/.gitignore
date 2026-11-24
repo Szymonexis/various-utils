@@ -7,6 +7,8 @@ names.json
 audio.wav
 transcription*.txt
 
-# craig recordings and everything generated inside them (private call audio, transcripts, api cache)
+# recordings and everything generated from them (private call audio, transcripts, api cache);
+# keep them in audio/, the craig-* patterns are a safety net for recordings unzipped elsewhere
+audio/
 craig-*/
 craig-*.zip

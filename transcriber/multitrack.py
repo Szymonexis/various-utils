@@ -11,8 +11,8 @@ Whisper invents stock phrases ("Dziękuję.", "Dzień dobry.", "Cześć.") on la
 clicks, and it is confident about them. Every line that is nothing but such a phrase is re-checked on
 its own audio by a second, non-whisper model (--verify-model) and only kept if that model hears it too.
 
-usage:
-  python multitrack.py <craig-folder> [--language pl] [--names names.json] [-o transcription.txt]
+usage (see README.md for more examples):
+  python multitrack.py audio/<craig-folder> [--language pl] [--names audio/names.json] [-o out.txt]
 
   --names    optional JSON mapping a track number, file name stem or username to the name to print,
              e.g. {"3": "GM", "some_username": "Alice"}; unmapped speakers keep their Discord username
@@ -471,10 +471,14 @@ def main():
   parser.add_argument("folder", type=Path, help="craig recording folder (N-name.flac tracks + info.txt)")
   parser.add_argument("-o", "--output", type=Path, help="default: <folder>/transcription.txt")
   parser.add_argument("--language", help="ISO-639-1 code such as pl; auto-detected when omitted")
-  parser.add_argument("--model", default="openai/whisper-large-v3")
+  parser.add_argument(
+    "--model", default="openai/whisper-large-v3",
+    help="OpenRouter model that transcribes the tracks (default: %(default)s)",
+  )
   parser.add_argument(
     "--verify-model", default="openai/gpt-4o-mini-transcribe",
-    help="second opinion for lines that are only a stock phrase; 'none' drops them unchecked",
+    help="second opinion for lines that are only a stock phrase, 'none' drops them unchecked "
+         "(default: %(default)s)",
   )
   parser.add_argument("--prompt", help="context passed to whisper, e.g. names and terms used in the call")
   parser.add_argument("--names", type=Path, help="JSON mapping track number / file stem / username to a name")
