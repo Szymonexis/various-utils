@@ -472,11 +472,11 @@ def main():
   parser.add_argument("-o", "--output", type=Path, help="default: <folder>/transcription.txt")
   parser.add_argument("--language", help="ISO-639-1 code such as pl; auto-detected when omitted")
   parser.add_argument(
-    "--model", default="openai/whisper-large-v3",
+    "--model", default="openai/whisper-large-v3-turbo",
     help="OpenRouter model that transcribes the tracks (default: %(default)s)",
   )
   parser.add_argument(
-    "--verify-model", default="openai/gpt-4o-mini-transcribe",
+    "--verify-model", default="microsoft/mai-transcribe-2",
     help="second opinion for lines that are only a stock phrase, 'none' drops them unchecked "
          "(default: %(default)s)",
   )
